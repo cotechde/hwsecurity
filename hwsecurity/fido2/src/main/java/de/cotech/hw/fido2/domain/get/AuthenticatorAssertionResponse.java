@@ -39,8 +39,11 @@ public abstract class AuthenticatorAssertionResponse extends AuthenticatorRespon
     @Nullable
     @SuppressWarnings("mutable")
     public abstract byte[] userHandle();
+    @Nullable
+    @SuppressWarnings("mutable")
+    public abstract byte[] hmacSecretData();
 
-    public static AuthenticatorAssertionResponse create(byte[] clientDataJson, byte[] authenticatorData, byte[] signature, @Nullable byte[] userHandle) {
-        return new AutoValue_AuthenticatorAssertionResponse(clientDataJson, authenticatorData, signature, userHandle);
+    public static AuthenticatorAssertionResponse create(byte[] clientDataJson, byte[] authenticatorData, byte[] signature, @Nullable byte[] userHandle, @Nullable byte[] hmacSecretData) {
+        return new AutoValue_AuthenticatorAssertionResponse(clientDataJson, authenticatorData, signature, userHandle, hmacSecretData);
     }
 }

@@ -67,6 +67,10 @@ public class PinAuthCryptoUtil {
         return hmacSha256Left16Bytes(pinToken, clientDataHash);
     }
 
+    public byte[] authenticate(byte[] secret, byte[] data) {
+        return hmacSha256Left16Bytes(secret, data);
+    }
+
     /**
      * Leftmost 16 bytes of an HMAC-SHA-256 operation.
      */
@@ -87,17 +91,35 @@ public class PinAuthCryptoUtil {
         }
     }
 
-    public byte[] calculatePinHashEnc(byte[] sharedSecret, String pin) throws IOException {
-        byte[] pinHash = calculatePinHash(pin);
+    public byte[] encrypt(byte[] sharedSecret, byte[] data) {
         try {
             SecretKeySpec secretKey = new SecretKeySpec(sharedSecret, "AES");
             IvParameterSpec ivParameterSpec = new IvParameterSpec(getIv());
             Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, ivParameterSpec);
-            return cipher.doFinal(pinHash);
+            return cipher.doFinal(data);
         } catch (IllegalBlockSizeException | InvalidAlgorithmParameterException | NoSuchAlgorithmException | NoSuchPaddingException | BadPaddingException | InvalidKeyException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    public byte[] decrypt(byte[] sharedSecret, byte[] data) throws IOException {
+        try {
+            SecretKeySpec secretKey = new SecretKeySpec(sharedSecret, "AES");
+            IvParameterSpec ivParameterSpec = new IvParameterSpec(new byte[16]);
+            Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec);
+            return cipher.doFinal(data);
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        } catch (IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException | InvalidKeyException e) {
+            throw new IOException("Error decrypting data from authenticator", e);
+        }
+    }
+
+    public byte[] calculatePinHashEnc(byte[] sharedSecret, String pin) throws IOException {
+        byte[] pinHash = calculatePinHash(pin);
+        return encrypt(sharedSecret, pinHash);
     }
 
     @Keep
@@ -134,14 +156,8 @@ public class PinAuthCryptoUtil {
 
     public byte[] decryptPinToken(byte[] sharedSecret, byte[] pinTokenEnc) throws IOException {
         try {
-            SecretKeySpec secretKey = new SecretKeySpec(sharedSecret, "AES");
-            IvParameterSpec ivParameterSpec = new IvParameterSpec(new byte[16]);
-            Cipher cipher = Cipher.getInstance("AES/CBC/NoPadding");
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, ivParameterSpec);
-            return cipher.doFinal(pinTokenEnc);
-        } catch (NoSuchPaddingException | NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        } catch (IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException | InvalidKeyException e) {
+            return decrypt(sharedSecret, pinTokenEnc);
+        } catch (IOException e) {
             throw new IOException("Error decrypting pinToken from authenticator", e);
         }
     }

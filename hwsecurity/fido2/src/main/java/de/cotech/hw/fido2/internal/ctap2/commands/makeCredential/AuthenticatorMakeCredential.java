@@ -29,6 +29,8 @@ import java.util.List;
 
 import androidx.annotation.Nullable;
 import com.google.auto.value.AutoValue;
+
+import de.cotech.hw.fido2.domain.ExtensionParameter;
 import de.cotech.hw.fido2.internal.ctap2.Ctap2Command;
 import de.cotech.hw.fido2.domain.PublicKeyCredentialDescriptor;
 import de.cotech.hw.fido2.domain.PublicKeyCredentialParameters;
@@ -60,7 +62,8 @@ public abstract class AuthenticatorMakeCredential extends Ctap2Command<Authentic
     public abstract List<PublicKeyCredentialDescriptor> excludeList();
 
     // 	CBOR map of extension identifier → authenticator extension input values 	Optional 	Parameters to influence authenticator operation, as specified in [WebAuthN]. These parameters might be authenticator specific.
-    // public abstract int extensions();
+    @Nullable
+    public abstract List<ExtensionParameter> extensions();
 
     // Map of authenticator options 	Optional 	Parameters to influence authenticator operation, as specified in in the table below.
     @Nullable
@@ -114,6 +117,15 @@ public abstract class AuthenticatorMakeCredential extends Ctap2Command<Authentic
             List<PublicKeyCredentialDescriptor> excludeList,
             AuthenticatorMakeCredentialOptions options, byte[] pinAuth, Integer pinProtocol) {
         return new AutoValue_AuthenticatorMakeCredential(Ctap2Command.COMMAND_MAKE_CREDENTIAL, clientDataHash, clientDataJson, rp, user,
-                pubKeyCredParams, excludeList, options, pinAuth, pinProtocol);
+                pubKeyCredParams, excludeList, null, options, pinAuth, pinProtocol);
+    }
+
+    public static AuthenticatorMakeCredential create(byte[] clientDataHash, String clientDataJson,
+                                                     PublicKeyCredentialRpEntity rp, PublicKeyCredentialUserEntity user, List<PublicKeyCredentialParameters> pubKeyCredParams,
+                                                     List<PublicKeyCredentialDescriptor> excludeList,
+                                                     List<ExtensionParameter> extensionParameters,
+                                                     AuthenticatorMakeCredentialOptions options, byte[] pinAuth, Integer pinProtocol) {
+        return new AutoValue_AuthenticatorMakeCredential(Ctap2Command.COMMAND_MAKE_CREDENTIAL, clientDataHash, clientDataJson, rp, user,
+                pubKeyCredParams, excludeList, extensionParameters, options, pinAuth, pinProtocol);
     }
 }

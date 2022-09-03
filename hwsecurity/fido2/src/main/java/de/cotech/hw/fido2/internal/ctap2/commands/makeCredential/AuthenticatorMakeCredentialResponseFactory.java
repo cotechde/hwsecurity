@@ -68,4 +68,5 @@ public class AuthenticatorMakeCredentialResponseFactory implements
             throw new IOException(e);
         }
     }
+
 }

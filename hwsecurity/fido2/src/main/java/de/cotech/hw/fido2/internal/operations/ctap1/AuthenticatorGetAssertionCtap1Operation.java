@@ -115,6 +115,7 @@ public class AuthenticatorGetAssertionCtap1Operation extends
                         authenticatorGetAssertion.clientDataJson().getBytes(),
                         authenticatorDataBytes,
                         u2fResponse.signature(),
+                        null,
                         null
                 );
 

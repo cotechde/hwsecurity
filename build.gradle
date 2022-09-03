@@ -27,5 +27,5 @@ allprojects {
 
 ext {
     compileSdkVersion = 29
-    hwSdkVersionName = '4.4.0'
+    hwSdkVersionName = '4.5.0'
 }

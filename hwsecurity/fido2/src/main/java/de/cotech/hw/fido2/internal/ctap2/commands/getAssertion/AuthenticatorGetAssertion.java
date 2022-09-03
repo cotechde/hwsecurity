@@ -29,10 +29,13 @@ import java.util.List;
 
 import androidx.annotation.Nullable;
 import com.google.auto.value.AutoValue;
+
+import de.cotech.hw.fido2.domain.ExtensionParameter;
 import de.cotech.hw.fido2.domain.PublicKeyCredentialDescriptor;
 import de.cotech.hw.fido2.internal.ctap2.Ctap2Command;
 import de.cotech.hw.fido2.internal.ctap2.Ctap2ResponseFactory;
 import de.cotech.hw.fido2.internal.ctap2.commands.getInfo.AuthenticatorOptions;
+import de.cotech.hw.fido2.internal.pinauth.PinToken;
 
 
 @AutoValue
@@ -50,7 +53,7 @@ public abstract class AuthenticatorGetAssertion extends Ctap2Command<Authenticat
     // extensions 	0x04 	CBOR definite length map (CBOR major type 5).
     @Nullable
     @SuppressWarnings("mutable")
-    abstract byte[] extensions();
+    public abstract List<ExtensionParameter> extensions();
     // options 	0x05 	CBOR definite length map (CBOR major type 5).
     @Nullable
     abstract AuthenticatorOptions options();
@@ -61,13 +64,26 @@ public abstract class AuthenticatorGetAssertion extends Ctap2Command<Authenticat
     // pinProtocol 	0x07 	PIN protocol version chosen by the client. For this version of the spec, this SHALL be the number 1.
     @Nullable
     public abstract Integer pinProtocol();
+    // Out of spec: The pinToken object associated with this request
+    @Nullable
+    public abstract PinToken pinToken();
 
     public static AuthenticatorGetAssertion create(String rpId, byte[] clientDataHash, String clientDataJson, List<PublicKeyCredentialDescriptor> allowCredentials, AuthenticatorOptions options) {
-        return new AutoValue_AuthenticatorGetAssertion(COMMAND_GET_ASSERTION, rpId, clientDataHash, clientDataJson, allowCredentials, null, options, null, null);
+        return new AutoValue_AuthenticatorGetAssertion(COMMAND_GET_ASSERTION, rpId, clientDataHash, clientDataJson, allowCredentials, null, options, null, null, null);
     }
 
-    public static AuthenticatorGetAssertion create(String rpId, byte[] clientDataHash, String clientDataJson, List<PublicKeyCredentialDescriptor> allowCredentials, AuthenticatorOptions options, byte[] pinAuth, Integer pinProtocol) {
-        return new AutoValue_AuthenticatorGetAssertion(COMMAND_GET_ASSERTION, rpId, clientDataHash, clientDataJson, allowCredentials, null, options, pinAuth, pinProtocol);
+    public static AuthenticatorGetAssertion create(String rpId, byte[] clientDataHash, String clientDataJson, List<PublicKeyCredentialDescriptor> allowCredentials, List<ExtensionParameter> extensionParameters, AuthenticatorOptions options) {
+        return new AutoValue_AuthenticatorGetAssertion(COMMAND_GET_ASSERTION, rpId, clientDataHash, clientDataJson, allowCredentials, extensionParameters, options, null, null, null);
+    }
+
+    public static AuthenticatorGetAssertion create(String rpId, byte[] clientDataHash, String clientDataJson, List<PublicKeyCredentialDescriptor> allowCredentials, AuthenticatorOptions options, PinToken pinToken) {
+        byte[] pinAuth = pinToken.calculatePinAuth(clientDataHash);
+        return new AutoValue_AuthenticatorGetAssertion(COMMAND_GET_ASSERTION, rpId, clientDataHash, clientDataJson, allowCredentials, null, options, pinAuth, pinToken.pinProtocol().version(), pinToken);
+    }
+
+    public static AuthenticatorGetAssertion create(String rpId, byte[] clientDataHash, String clientDataJson, List<PublicKeyCredentialDescriptor> allowCredentials, List<ExtensionParameter> extensionParameters, AuthenticatorOptions options, PinToken pinToken) {
+        byte[] pinAuth = pinToken.calculatePinAuth(clientDataHash);
+        return new AutoValue_AuthenticatorGetAssertion(COMMAND_GET_ASSERTION, rpId, clientDataHash, clientDataJson, allowCredentials, extensionParameters, options, pinAuth, pinToken.pinProtocol().version(), pinToken);
     }
 
     @Override

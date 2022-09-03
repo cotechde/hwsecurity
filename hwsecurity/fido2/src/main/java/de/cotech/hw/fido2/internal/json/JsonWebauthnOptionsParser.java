@@ -69,7 +69,7 @@ public class JsonWebauthnOptionsParser {
                 publicKeyObject.optJSONObject("authenticatorSelection"));
 
         return PublicKeyCredentialCreationOptions.create(rp, user, challenge, pubKeyCredParams, timeout,
-                authenticatorSelection, null, attestationConveyancePreference);
+                authenticatorSelection, null, attestationConveyancePreference, null);
     }
 
     private List<PublicKeyCredentialParameters> jsonToPubKeyCredParamsList(

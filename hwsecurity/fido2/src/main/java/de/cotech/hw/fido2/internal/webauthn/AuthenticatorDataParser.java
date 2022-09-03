@@ -26,16 +26,20 @@ package de.cotech.hw.fido2.internal.webauthn;
 
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import de.cotech.hw.fido2.domain.create.AuthenticatorData;
 import de.cotech.hw.fido2.internal.cbor_java.CborDecoder;
+import de.cotech.hw.fido2.internal.cbor_java.CborEncoder;
 import de.cotech.hw.fido2.internal.cbor_java.CborException;
 import de.cotech.hw.fido2.internal.cbor_java.model.DataItem;
 import de.cotech.hw.fido2.domain.create.AttestedCredentialData;
-import de.cotech.hw.fido2.domain.create.AuthenticatorData;
 import de.cotech.hw.fido2.internal.cbor.CborUtils;
+import de.cotech.hw.fido2.internal.cbor_java.model.MajorType;
+import de.cotech.hw.fido2.internal.cbor_java.model.Map;
 
 
 public class AuthenticatorDataParser {
@@ -44,7 +48,7 @@ public class AuthenticatorDataParser {
 
     private static final int LENGTH_AAGUID = 16;
 
-    AuthenticatorData fromBytes(byte[] bytes) throws IOException {
+    public AuthenticatorData fromBytes(byte[] bytes) throws IOException {
         ByteBuffer buf = ByteBuffer.wrap(bytes).duplicate();
         buf.order(ByteOrder.BIG_ENDIAN);
 
@@ -54,7 +58,7 @@ public class AuthenticatorDataParser {
         int sigCounter = buf.getInt();
 
         AttestedCredentialData attestedCredentialData = null;
-        byte[] extensionData = null;
+        Map extensionData = null;
 
         boolean hasAttestedCredentialData = (flags & AuthenticatorData.FLAG_ATTESTED_CREDENTIAL_DATA) != 0;
         if (hasAttestedCredentialData) {
@@ -63,8 +67,7 @@ public class AuthenticatorDataParser {
 
         boolean hasExtensionData = (flags & AuthenticatorData.FLAG_EXTENSION_DATA) != 0;
         if (hasExtensionData) {
-            extensionData = new byte[buf.remaining()];
-            buf.get(extensionData);
+            extensionData = parseExtensionData(buf);
         }
 
         return AuthenticatorData.create(
@@ -74,8 +77,20 @@ public class AuthenticatorDataParser {
     public byte[] toBytes(AuthenticatorData authenticatorData) {
         byte[] attestedCredentialData = serializeAttestedCredentialData(authenticatorData.attestedCredentialData());
 
-        byte[] extensionData = authenticatorData.extensions();
-        int extensionDataLength = authenticatorData.hasExtensionData() && extensionData != null ? extensionData.length : 0;
+        byte[] extensionData = null;
+
+        if (authenticatorData.hasExtensionData()) {
+            try {
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                new CborEncoder(outputStream).encode(authenticatorData.extensions());
+                extensionData = outputStream.toByteArray();
+            } catch (CborException e) {
+                // Failing to re-CBOR-encode a CBOR DataItem?
+                throw new IllegalStateException(e);
+            }
+        }
+
+        int extensionDataLength = extensionData != null ? extensionData.length : 0;
 
         ByteBuffer result = ByteBuffer.allocate(
                 TOTAL_LENGTH_HEADER + attestedCredentialData.length + extensionDataLength);
@@ -106,6 +121,20 @@ public class AuthenticatorDataParser {
         result.put(attestedCredentialData.credentialPublicKey());
 
         return result.array();
+    }
+
+    private static Map parseExtensionData(ByteBuffer buf) throws IOException {
+        try {
+            ByteArrayInputStream inputStream = new ByteArrayInputStream(
+                    buf.array(), buf.arrayOffset() + buf.position(), buf.remaining());
+            DataItem dataItem = new CborDecoder(inputStream).decodeNext();
+            if (dataItem.getMajorType() != MajorType.MAP) {
+                throw new IOException("Extension data not a CBOR map!");
+            }
+            return (Map) dataItem;
+        } catch (CborException e) {
+            throw new IOException("Error reading CBOR-encoded credential data!", e);
+        }
     }
 
     private static AttestedCredentialData parseAttestedCredentialData(ByteBuffer buf) throws IOException {

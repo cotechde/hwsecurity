@@ -31,6 +31,8 @@ import android.os.Parcelable;
 
 import androidx.annotation.Nullable;
 import com.google.auto.value.AutoValue;
+
+import de.cotech.hw.fido2.domain.ExtensionParameter;
 import de.cotech.hw.fido2.domain.PublicKeyCredentialDescriptor;
 import de.cotech.hw.fido2.domain.PublicKeyCredentialParameters;
 import de.cotech.hw.fido2.domain.PublicKeyCredentialRpEntity;
@@ -50,6 +52,8 @@ public abstract class PublicKeyCredentialCreationOptions implements Parcelable {
     @Nullable
     public abstract List<PublicKeyCredentialDescriptor> excludeCredentials();
     public abstract AttestationConveyancePreference attestation();
+    @Nullable
+    public abstract List<ExtensionParameter> extensionParameters();
 
     public static PublicKeyCredentialCreationOptions create(
             PublicKeyCredentialRpEntity rp,
@@ -61,8 +65,22 @@ public abstract class PublicKeyCredentialCreationOptions implements Parcelable {
             @Nullable List<PublicKeyCredentialDescriptor> excludeCredentials,
             AttestationConveyancePreference attestation
     ) {
+        return create(rp, user, challenge, pubKeyCredParams, timeout, authenticatorSelection, excludeCredentials, attestation);
+    }
+
+    public static PublicKeyCredentialCreationOptions create(
+            PublicKeyCredentialRpEntity rp,
+            PublicKeyCredentialUserEntity user,
+            byte[] challenge,
+            List<PublicKeyCredentialParameters> pubKeyCredParams,
+            @Nullable Long timeout,
+            AuthenticatorSelectionCriteria authenticatorSelection,
+            @Nullable List<PublicKeyCredentialDescriptor> excludeCredentials,
+            AttestationConveyancePreference attestation,
+            @Nullable List<ExtensionParameter> extensionParameters
+    ) {
         return new AutoValue_PublicKeyCredentialCreationOptions(
                 rp, user, challenge, pubKeyCredParams, timeout,
-                authenticatorSelection, excludeCredentials, attestation);
+                authenticatorSelection, excludeCredentials, attestation, extensionParameters);
     }
 }

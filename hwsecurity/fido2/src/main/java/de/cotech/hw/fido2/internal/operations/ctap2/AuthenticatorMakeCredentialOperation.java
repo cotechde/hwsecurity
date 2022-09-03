@@ -143,12 +143,12 @@ public class AuthenticatorMakeCredentialOperation extends
         }
 
         if (pinToken != null) {
-            byte[] pinAuth = pinProtocolV1.calculatePinAuth(pinToken, clientDataHash);
+            byte[] pinAuth = pinToken.calculatePinAuth(clientDataHash);
             return AuthenticatorMakeCredential.create(clientDataHash, clientDataJson, rp, options.user(), options.pubKeyCredParams(),
-                    options.excludeCredentials(), authenticatorOptions, pinAuth, PinProtocolV1.PIN_PROTOCOL);
+                    options.excludeCredentials(), options.extensionParameters(), authenticatorOptions, pinAuth, pinToken.pinProtocol().version());
         } else {
             return AuthenticatorMakeCredential.create(clientDataHash, clientDataJson, rp, options.user(), options.pubKeyCredParams(),
-                    options.excludeCredentials(), authenticatorOptions, null, null);
+                    options.excludeCredentials(), options.extensionParameters(), authenticatorOptions, null, null);
         }
     }
 

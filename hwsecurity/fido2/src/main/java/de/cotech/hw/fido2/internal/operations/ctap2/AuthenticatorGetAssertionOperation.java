@@ -46,6 +46,7 @@ import de.cotech.hw.fido2.exceptions.FidoResidentKeyNotSupportedException;
 import de.cotech.hw.fido2.exceptions.FidoSecurityError;
 import de.cotech.hw.fido2.internal.Fido2AppletConnection;
 import de.cotech.hw.fido2.internal.cbor.CborPublicKeyCredentialDescriptorParser;
+import de.cotech.hw.fido2.internal.cbor_java.model.UnicodeString;
 import de.cotech.hw.fido2.internal.ctap2.Ctap2Exception;
 import de.cotech.hw.fido2.internal.ctap2.CtapErrorResponse;
 import de.cotech.hw.fido2.internal.ctap2.commands.getAssertion.AuthenticatorGetAssertion;
@@ -55,6 +56,7 @@ import de.cotech.hw.fido2.internal.operations.WebauthnSecurityKeyOperation;
 import de.cotech.hw.fido2.internal.pinauth.PinProtocolV1;
 import de.cotech.hw.fido2.internal.pinauth.PinToken;
 import de.cotech.hw.fido2.internal.utils.RelyingPartyIdUtils;
+import de.cotech.hw.fido2.internal.webauthn.AuthenticatorDataParser;
 import de.cotech.hw.util.HashUtil;
 import de.cotech.hw.util.HwTimber;
 
@@ -67,6 +69,7 @@ public class AuthenticatorGetAssertionOperation extends
     private final PinProtocolV1 pinProtocolV1;
     private final JsonCollectedClientDataSerializer jsonCollectedClientDataSerializer;
     private final RelyingPartyIdUtils relyingPartyIdUtils;
+    private final AuthenticatorDataParser authenticatorDataParser = new AuthenticatorDataParser();
 
     public AuthenticatorGetAssertionOperation(
             CborPublicKeyCredentialDescriptorParser cborPublicKeyCredentialDescriptorParser,
@@ -96,6 +99,7 @@ public class AuthenticatorGetAssertionOperation extends
         try {
             AuthenticatorGetAssertionResponse response =
                     fido2AppletConnection.ctap2CommunicateOrThrow(authenticatorGetAssertion);
+
             return ctap2ResponseToWebauthnResponse(request, response);
         } catch (Ctap2Exception e) {
             switch (e.ctapErrorResponse.errorCode()) {
@@ -154,20 +158,19 @@ public class AuthenticatorGetAssertionOperation extends
         byte[] clientDataHash = HashUtil.sha256(clientDataJson);
 
         if (pinToken != null) {
-            byte[] pinAuth = pinProtocolV1.calculatePinAuth(pinToken, clientDataHash);
             return AuthenticatorGetAssertion
-                    .create(rpId, clientDataHash, clientDataJson, options.allowCredentials(), null,
-                            pinAuth, PinProtocolV1.PIN_PROTOCOL);
+                    .create(rpId, clientDataHash, clientDataJson, options.allowCredentials(), options.extensionParameters(), null,
+                            pinToken);
         } else {
-            return AuthenticatorGetAssertion.create(rpId, clientDataHash, clientDataJson, options.allowCredentials(), null);
+            return AuthenticatorGetAssertion.create(rpId, clientDataHash, clientDataJson, options.allowCredentials(), options.extensionParameters(), null);
         }
     }
 
     private PublicKeyCredential ctap2ResponseToWebauthnResponse(
-            PublicKeyCredentialGet credentialCreate,
+            PublicKeyCredentialGet credentialGet,
             AuthenticatorGetAssertionResponse response
     ) throws IOException {
-        byte[] credential = determinePublicKeyCredentialId(credentialCreate, response);
+        byte[] credential = determinePublicKeyCredentialId(credentialGet, response);
 
         PublicKeyCredentialUserEntity user = response.user();
         AssertionCreationData assertionCreationData = AssertionCreationData.create(
@@ -185,7 +188,8 @@ public class AuthenticatorGetAssertionOperation extends
                 assertionCreationData.clientDataJSONResult(),
                 assertionCreationData.authenticatorDataResult(),
                 assertionCreationData.signatureResult(),
-                assertionCreationData.userHandleResult()
+                assertionCreationData.userHandleResult(),
+                response.hmacSecretData()
         );
         return PublicKeyCredential
                 .create(assertionCreationData.credentialIdResult(), authenticatorResponse);

@@ -27,6 +27,7 @@ package de.cotech.hw.fido2.domain.create;
 
 import androidx.annotation.Nullable;
 import com.google.auto.value.AutoValue;
+import de.cotech.hw.fido2.internal.cbor_java.model.Map;
 
 
 @AutoValue
@@ -69,7 +70,7 @@ public abstract class AuthenticatorData {
     // extensions 	variable (if present) 	Extension-defined authenticator data. This is a CBOR [RFC7049] map with extension identifiers as keys, and authenticator extension outputs as values. See §9 WebAuthn Extensions for details.
     @Nullable
     @SuppressWarnings("mutable")
-    public abstract byte[] extensions();
+    public abstract Map extensions();
 
     public boolean hasAttestedCredentialData() {
         return (flags() & FLAG_ATTESTED_CREDENTIAL_DATA) != 0;
@@ -80,7 +81,7 @@ public abstract class AuthenticatorData {
     }
 
     public static AuthenticatorData create(byte[] rpIdHash, byte flags, int sigCounter,
-            AttestedCredentialData credentialData, byte[] extensions) {
+                                           AttestedCredentialData credentialData, Map extensions) {
         return new AutoValue_AuthenticatorData(rpIdHash, flags, sigCounter, credentialData, extensions);
     }
 

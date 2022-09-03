@@ -22,45 +22,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package de.cotech.hw.fido2.internal.pinauth;
-
+package de.cotech.hw.fido2.domain;
 
 import com.google.auto.value.AutoValue;
 
-import java.io.IOException;
-
-
 @AutoValue
-public abstract class PinToken {
+public abstract class BooleanExtensionParameterValue implements ExtensionParameter.ExtensionParameterValue {
+    public abstract boolean value();
 
-    public abstract PinProtocol pinProtocol();
-
-    @SuppressWarnings("mutable")
-    public abstract byte[] pinToken();
-
-    @SuppressWarnings("mutable")
-    public abstract byte[] platformKeyAgreementKey();
-
-    @SuppressWarnings("mutable")
-    abstract byte[] sharedSecret();
-
-    public byte[] authenticate(byte[] data) {
-        return pinProtocol().authenticate(this, data);
-    }
-
-    public byte[] calculatePinAuth(byte[] data) {
-        return pinProtocol().calculatePinAuth(this, data);
-    }
-
-    public byte[] encrypt(byte[] data) {
-        return pinProtocol().encrypt(this, data);
-    }
-
-    public byte[] decrypt(byte[] data) throws IOException {
-        return pinProtocol().decrypt(this, data);
-    }
-
-    public static PinToken create(PinProtocol pinProtocol, byte[] pinToken, byte[] platformKeyAgreementKey, byte[] sharedSecret) {
-        return new AutoValue_PinToken(pinProtocol, pinToken, platformKeyAgreementKey, sharedSecret);
+    public static BooleanExtensionParameterValue create(boolean value) {
+        return new AutoValue_BooleanExtensionParameterValue(value);
     }
 }

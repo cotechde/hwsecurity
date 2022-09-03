@@ -28,6 +28,7 @@ package de.cotech.hw.fido2.internal.ctap2.commands.getAssertion;
 import java.io.IOException;
 import java.util.List;
 
+import de.cotech.hw.fido2.domain.create.AuthenticatorData;
 import de.cotech.hw.fido2.internal.cbor_java.CborDecoder;
 import de.cotech.hw.fido2.internal.cbor_java.CborException;
 import de.cotech.hw.fido2.internal.cbor_java.model.ByteString;
@@ -40,11 +41,14 @@ import de.cotech.hw.fido2.domain.PublicKeyCredentialUserEntity;
 import de.cotech.hw.fido2.internal.cbor.CborUtils;
 import de.cotech.hw.fido2.internal.ctap2.Ctap2CborConstants;
 import de.cotech.hw.fido2.internal.ctap2.Ctap2ResponseFactory;
+import de.cotech.hw.fido2.internal.webauthn.AuthenticatorDataParser;
 
 
 public class AuthenticatorGetAssertionResponseFactory implements
         Ctap2ResponseFactory<AuthenticatorGetAssertionResponse> {
     private final AuthenticatorGetAssertion authenticatorGetAssertion;
+    private static final AuthenticatorDataParser authenticatorDataParser = new AuthenticatorDataParser();
+    private static final UnicodeString HMAC_SECRET_EXTENSION_ID = new UnicodeString("hmac-secret");
 
     AuthenticatorGetAssertionResponseFactory(AuthenticatorGetAssertion authenticatorGetAssertion) {
         this.authenticatorGetAssertion = authenticatorGetAssertion;
@@ -76,13 +80,27 @@ public class AuthenticatorGetAssertionResponseFactory implements
         PublicKeyCredentialUserEntity publicKeyCredentialUserEntity =
                 readPublicKeyCredentialUserEntity(user);
 
+        byte[] decryptedHmacSecretValue = null;
+        AuthenticatorData decodedAuthData = authenticatorDataParser.fromBytes(authData.getBytes());
+        if (decodedAuthData.hasExtensionData()) {
+            DataItem hmacSecretValue = decodedAuthData.extensions().get(HMAC_SECRET_EXTENSION_ID);
+            if (hmacSecretValue != null) {
+                if (hmacSecretValue.getMajorType() != MajorType.BYTE_STRING) {
+                    throw new IOException("hmac-secret response is not a byte string");
+                }
+                byte[] hmacSecretBytes = ((ByteString) hmacSecretValue).getBytes();
+                decryptedHmacSecretValue = authenticatorGetAssertion.pinToken().decrypt(hmacSecretBytes);
+            }
+        }
+
         return AuthenticatorGetAssertionResponse.create(
                 credential != null ? CborUtils.writeCborDataToBytes(credential) : null,
                 authData.getBytes(),
                 signature.getBytes(),
                 publicKeyCredentialUserEntity,
                 numberOfCredentials != null ? numberOfCredentials.getValue().intValue() : null,
-                authenticatorGetAssertion.clientDataJson().getBytes()
+                authenticatorGetAssertion.clientDataJson().getBytes(),
+                decryptedHmacSecretValue
         );
     }
 

@@ -31,6 +31,8 @@ import android.os.Parcelable;
 
 import androidx.annotation.Nullable;
 import com.google.auto.value.AutoValue;
+
+import de.cotech.hw.fido2.domain.ExtensionParameter;
 import de.cotech.hw.fido2.domain.PublicKeyCredentialDescriptor;
 import de.cotech.hw.fido2.domain.UserVerificationRequirement;
 
@@ -47,6 +49,8 @@ public abstract class PublicKeyCredentialRequestOptions implements Parcelable {
     public abstract List<PublicKeyCredentialDescriptor> allowCredentials();
     @Nullable
     public abstract UserVerificationRequirement userVerification();
+    @Nullable
+    public abstract List<ExtensionParameter> extensionParameters();
 
     public static PublicKeyCredentialRequestOptions create(
             byte[] challenge,
@@ -55,7 +59,20 @@ public abstract class PublicKeyCredentialRequestOptions implements Parcelable {
             List<PublicKeyCredentialDescriptor> allowCredentials,
             UserVerificationRequirement userVerification
     ) {
+        return create(challenge, timeout, rpId, allowCredentials, userVerification, null);
+    }
+
+    public static PublicKeyCredentialRequestOptions create(
+            byte[] challenge,
+            Long timeout,
+            String rpId,
+            List<PublicKeyCredentialDescriptor> allowCredentials,
+            UserVerificationRequirement userVerification,
+            @Nullable
+            List<ExtensionParameter> extensionParameters
+    ) {
         return new AutoValue_PublicKeyCredentialRequestOptions(
-                challenge, timeout, rpId, allowCredentials, userVerification);
+                challenge, timeout, rpId, allowCredentials, userVerification,
+                extensionParameters);
     }
 }

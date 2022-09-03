@@ -30,6 +30,10 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.Map.Entry;
 
+import de.cotech.hw.fido2.domain.BooleanExtensionParameterValue;
+import de.cotech.hw.fido2.domain.ByteArrayExtensionParameterValue;
+import de.cotech.hw.fido2.domain.ExtensionParameter;
+import de.cotech.hw.fido2.domain.HmacSecretExtensionParameterValue;
 import de.cotech.hw.fido2.internal.cbor_java.CborBuilder;
 import de.cotech.hw.fido2.internal.cbor_java.CborDecoder;
 import de.cotech.hw.fido2.internal.cbor_java.CborEncoder;
@@ -51,6 +55,8 @@ import de.cotech.hw.fido2.domain.PublicKeyCredentialRpEntity;
 import de.cotech.hw.fido2.domain.PublicKeyCredentialUserEntity;
 import de.cotech.hw.fido2.internal.ctap2.commands.makeCredential.AuthenticatorMakeCredential.AuthenticatorMakeCredentialOptions;
 import de.cotech.hw.fido2.internal.ctap2.commands.rawCommand.RawCtap2Command;
+import de.cotech.hw.fido2.internal.pinauth.PinToken;
+import de.cotech.hw.util.Arrays;
 
 
 class Ctap2CborSerializer {
@@ -126,6 +132,13 @@ class Ctap2CborSerializer {
             arrayBuilder.end();
         }
         // extensions 	0x06 	CBOR definite length map (CBOR major type 5).
+        List<ExtensionParameter> extensionParameters = amc.extensions();
+        if (extensionParameters != null) {
+            MapBuilder<?> mapBuilder = cborBuilder.putMap(0x06);
+            for (ExtensionParameter param : extensionParameters) {
+                writeToMap(mapBuilder, param);
+            }
+        }
 
         // options 	0x07 	CBOR definite length map (CBOR major type 5).
         AuthenticatorMakeCredentialOptions options = amc.options();
@@ -176,6 +189,13 @@ class Ctap2CborSerializer {
             }
         }
         // extensions 	0x04 	CBOR definite length map (CBOR major type 5).
+        List<ExtensionParameter> extensionParameters = aga.extensions();
+        if (extensionParameters != null) {
+            MapBuilder<?> mapBuilder = cborBuilder.putMap(0x04);
+            for (ExtensionParameter param : extensionParameters) {
+                writeToMap(mapBuilder, param, aga);
+            }
+        }
         // options 	0x05 	CBOR definite length map (CBOR major type 5).
 
         // pinAuth 	0x06 	byte string (CBOR major type 2).
@@ -264,5 +284,54 @@ class Ctap2CborSerializer {
                 arrayBuilder.add(transport.transport);
             }
         }
+    }
+
+    private void writeToMap(MapBuilder<?> mapBuilder, ExtensionParameter extensionParameters) {
+        Object value = extensionParameters.value();
+        if (value instanceof BooleanExtensionParameterValue) {
+            mapBuilder.put(extensionParameters.key(), ((BooleanExtensionParameterValue) value).value());
+        } else if (value instanceof ByteArrayExtensionParameterValue) {
+            mapBuilder.put(extensionParameters.key(), ((ByteArrayExtensionParameterValue) value).value());
+        } else {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private void writeToMap(MapBuilder<?> mapBuilder, ExtensionParameter extensionParameters, AuthenticatorGetAssertion aga) {
+        // Handle parameters which require assertion-specific data here
+        Object value = extensionParameters.value();
+        if (value instanceof HmacSecretExtensionParameterValue) {
+            HmacSecretExtensionParameterValue param = (HmacSecretExtensionParameterValue) value;
+            MapBuilder<?> hmacParamsMap = mapBuilder.putMap(extensionParameters.key());
+
+            PinToken pinToken = aga.pinToken();
+            if (pinToken == null) {
+                throw new UnsupportedOperationException("An HMAC secret cannot be requested without PIN auth");
+            }
+
+            byte[] salts;
+            if (param.salt2() == null) {
+                salts = param.salt1();
+            } else {
+                salts = Arrays.concatenate(param.salt1(), param.salt2());
+            }
+
+            byte[] saltEnc = pinToken.encrypt(salts);
+
+            try {
+                hmacParamsMap.put(Ctap2CborConstants.CBOR_ONE, new CborDecoder(new ByteArrayInputStream(pinToken.platformKeyAgreementKey())).decodeNext());
+            } catch (CborException e) {
+                throw new IllegalArgumentException(e);
+            } // keyAgreement
+            hmacParamsMap.put(0x02, saltEnc); // saltEnc
+            hmacParamsMap.put(0x03, pinToken.authenticate(saltEnc)); // saltAuth
+            if (pinToken.pinProtocol().version() != 1) { // pinUvAuthProtocol
+                hmacParamsMap.put(0x04, pinToken.pinProtocol().version());
+            }
+
+            return;
+        }
+
+        writeToMap(mapBuilder, extensionParameters);
     }
 }

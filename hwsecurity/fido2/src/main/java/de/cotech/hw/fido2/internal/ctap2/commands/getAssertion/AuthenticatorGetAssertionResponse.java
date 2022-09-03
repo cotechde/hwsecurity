@@ -53,6 +53,10 @@ public abstract class AuthenticatorGetAssertionResponse extends Ctap2Response {
     @SuppressWarnings("mutable")
     public abstract byte[] clientDataJSON();
 
+    @Nullable
+    @SuppressWarnings("mutable")
+    public abstract byte[] hmacSecretData();
+
 
     public static AuthenticatorGetAssertionResponse create(
             @Nullable byte[] credential,
@@ -60,8 +64,9 @@ public abstract class AuthenticatorGetAssertionResponse extends Ctap2Response {
             byte[] signature,
             @Nullable PublicKeyCredentialUserEntity user,
             @Nullable Integer numberOfCredentials,
-            byte[] clientDataJSON
+            byte[] clientDataJSON,
+            @Nullable byte[] hmacSecretData
     ) {
-        return new AutoValue_AuthenticatorGetAssertionResponse(credential, authData, signature, user, numberOfCredentials, clientDataJSON);
+        return new AutoValue_AuthenticatorGetAssertionResponse(credential, authData, signature, user, numberOfCredentials, clientDataJSON, hmacSecretData);
     }
 }

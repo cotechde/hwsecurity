@@ -44,7 +44,7 @@ import de.cotech.hw.util.Hex;
 import de.cotech.hw.util.HwTimber;
 
 
-public class PinProtocolV1 {
+public class PinProtocolV1 implements PinProtocol {
     public static final int PIN_PROTOCOL = 1;
 
     private final PinAuthCryptoUtil pinAuthCryptoUtil;
@@ -53,6 +53,7 @@ public class PinProtocolV1 {
         this.pinAuthCryptoUtil = pinAuthCryptoUtil;
     }
 
+    @Override
     public PinToken clientPinAuthenticate(
             Fido2AppletConnection fido2AppletConnection, String pin, boolean lastAttemptOk) throws IOException {
         AuthenticatorClientPin ctap2Command;
@@ -98,7 +99,7 @@ public class PinProtocolV1 {
                     .decryptPinToken(sharedSecret, authenticatorClientPinResponse.pinToken());
             HwTimber.d("Authentication successful. pinToken is " +
                     Hex.encodeHexString(pinToken));
-            return PinToken.create(pinToken);
+            return PinToken.create(this, pinToken, platformKeyAgreementKey, sharedSecret);
         } catch (Ctap2Exception e) {
             switch (e.ctapErrorResponse.errorCode()) {
                 case CtapErrorResponse.CTAP2_ERR_PIN_BLOCKED:
@@ -108,9 +109,12 @@ public class PinProtocolV1 {
                     throw new FidoClientPinInvalidException(retriesLeft);
             }
             throw e;
-        } finally {
-            Arrays.fill(sharedSecret, (byte) 0);
         }
+    }
+
+    @Override
+    public int version() {
+        return PIN_PROTOCOL;
     }
 
     private int checkRetries(Fido2AppletConnection fido2AppletConnection)
@@ -124,7 +128,22 @@ public class PinProtocolV1 {
         return retries;
     }
 
-    public byte[] calculatePinAuth(PinToken pinToken, byte[] clientDataHash) {
-        return pinAuthCryptoUtil.calculatePinAuth(pinToken.pinToken(), clientDataHash);
+    public byte[] calculatePinAuth(PinToken pinToken, byte[] data) {
+        return pinAuthCryptoUtil.calculatePinAuth(pinToken.pinToken(), data);
+    }
+
+    @Override
+    public byte[] authenticate(PinToken pinToken, byte[] data) {
+        return pinAuthCryptoUtil.authenticate(pinToken.sharedSecret(), data);
+    }
+
+    @Override
+    public byte[] encrypt(PinToken pinToken, byte[] data) {
+        return pinAuthCryptoUtil.encrypt(pinToken.sharedSecret(), data);
+    }
+
+    @Override
+    public byte[] decrypt(PinToken pinToken, byte[] data) throws IOException {
+        return pinAuthCryptoUtil.decrypt(pinToken.sharedSecret(), data);
     }
 }
